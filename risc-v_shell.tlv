@@ -18,7 +18,7 @@
    //  x12 (a2): 10
    //  x13 (a3): 1..10
    //  x14 (a4): Sum
-   // 
+   //
    m4_asm(ADDI, x14, x0, 0)             // Initialize sum register a4 with 0
    m4_asm(ADDI, x12, x0, 1010)          // Store count of 10 in register a2.
    m4_asm(ADDI, x13, x0, 1)             // Initialize loop count register a3 with 0
@@ -42,9 +42,24 @@
    
    $reset = *reset;
    
+   //Program counter(just increments as of now)
+   $next_pc[31:0] = $reset ? 0 : >>1$next_pc[31:0] + 4;
+   $pc[31:0] = >>1$next_pc;
    
-   // YOUR CODE HERE
-   // ...
+   //IMem implementation - Instructions are being loaded by m4_asm automatically
+   //Read is always enabled
+   `READONLY_MEM($pc , $instr[31:0])
+   
+   //Instruction Decode
+   $is_u_instr = $inst[6:2] ==? 5'b0x101;
+   $is_i_instr = $inst[6:2] == 5'b0000 || 5'b00001 ||
+                               5'b00100 || 5'b00110 ||
+                               5'b00100;
+   $is_r_instr = $inst[6:2] == 5'b01011 || 5'b01100 ||
+                               5'b01110;
+   $is_s_instr = $inst[6:2] ==? 5'b0100x;
+   $is_b_instr = $inst[6:2] == 5'b11000;
+   $is_j_instr = $inst[6:2] == 5'b11011;
    
    
    // Assert these to end simulation (before Makerchip cycle limit).
