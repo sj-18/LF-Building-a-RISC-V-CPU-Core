@@ -48,7 +48,7 @@
    
    //IMem implementation - Instructions are being loaded by m4_asm automatically
    //Read is always enabled
-   `READONLY_MEM($pc , $instr[31:0])
+   `READONLY_MEM($pc , $$instr[31:0])
    
    //Instruction Decode
    $is_u_instr = $instr[6:2] ==? 5'b0x101;
@@ -64,12 +64,18 @@
    $is_b_instr = $instr[6:2] == 5'b11000;
    $is_j_instr = $instr[6:2] == 5'b11011;
    
-   //Extract fields - opcode,rs1,rs2 etc.
+   //Extract fields - opcode,rs1,rs2 etc. as per RISC-V base instruction formats
    $opcode[6:0] = $instr[6:0];
    $rd[4:0] = $instr[11:7];
    $funct3[2:0] = $instr[14:12];
    $rs1[4:0] = $instr[19:15];
    $rs2[4:0] = $instr[24:20];
+   $imm[31:0] = $is_i_instr ? { {21{$instr[31]}},$instr[30:20] } :
+                $is_s_instr ? { {21{$instr[31]}},$instr[30:25],$instr[11:7] } :
+                $is_b_instr ? { {15{$instr[31]}},$instr[7],$instr[30:25],$instr[30:25],$instr[11:8],$instr[8] } :
+                $is_u_instr ? { {13{$instr[31]}},$instr[30:12]} :
+                $is_j_instr ? { {11{$instr[31]}},$instr[19:12],$instr[20],$instr[30:21],$instr[21] }: 
+                32'b0 ; //Default
    
    //Check which fields are valid for the current instruction
    $rd_valid = $is_r_instr || $is_i_instr ||
@@ -83,15 +89,31 @@
                 $is_s_instr || $is_b_instr ||
                 $is_u_instr;
    
-   //Log clean-up
+   //Decode exact instruction
+   $dec_bits[10:0] = {$instr[30],$funct3,$opcode};
+   $is_beq = $dec_bits ==? 11'bx_000_1100011;
+   $is_bne = $dec_bits ==? 11'bx_001_1100011;
+   $is_blt = $dec_bits ==? 11'bx_100_1100011;
+   $is_bge = $dec_bits ==? 11'bx_101_1100011;
+   $is_bltu = $dec_bits ==? 11'bx_110_1100011;
+   $is_bgeu = $dec_bits ==? 11'bx_111_1100011;
+   $is_addi = $dec_bits ==? 11'bx_000_0010011;
+   $is_add = $dec_bits == 11'b0_000_0110011;
+   
+   
+   //Log clean-up for dangling signals
    `BOGUS_USE($rd $rd_valid $rs1 $rs1_valid $funct3 $funct3_valid
-              $opcode $imm_valid $instr $rs2 $rs2_valid);
+              $opcode $imm_valid $instr $rs2 $rs2_valid $imm
+              $is_beq $is_bne $is_blt $is_bge $is_bltu $is_bgeu
+              $is_addi $is_add);
    
    // Assert these to end simulation (before Makerchip cycle limit).
    *passed = 1'b0;
    *failed = *cyc_cnt > M4_MAX_CYC;
    
-   //m4+rf(32, 32, $reset, $wr_en, $wr_index[4:0], $wr_data[31:0], $rd_en1, $rd_index1[4:0], $rd_data1, $rd_en2, $rd_index2[4:0], $rd_data2)
+   //Register File macro
+   m4+rf(32, 32, $reset, $rd_valid, $rd[4:0], $wr_data[31:0], $rs1_valid, $rs1[4:0], $src1_value, $rs2_valid, $rs2[4:0], $src2_value)
+   
    //m4+dmem(32, 32, $reset, $addr[4:0], $wr_en, $wr_data[31:0], $rd_en, $rd_data)
    m4+cpu_viz()
 \SV
