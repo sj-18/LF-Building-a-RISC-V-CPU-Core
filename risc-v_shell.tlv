@@ -29,6 +29,7 @@
    // Test result value in x14, and set x31 to reflect pass/fail.
    m4_asm(ADDI, x30, x14, 111111010100) // Subtract expected value of 44 to set x30 to 1 if and only iff the result is 45 (1 + 2 + ... + 9).
    m4_asm(BGE, x0, x0, 0) // Done. Jump to itself (infinite loop). (Up to 20-bit signed immediate plus implicit 0 bit (unlike JALR) provides byte address; last immediate bit should also be 0)
+   m4_asm(ADD, x0, x13, x14) //Check if x0 stays 'always zero'
    m4_asm_end()
    m4_define(['M4_MAX_CYC'], 50)
    //---------------------------------------------------------------------------------
@@ -43,7 +44,9 @@
    $reset = *reset;
    
    //Program counter(just increments as of now)
-   $next_pc[31:0] = $reset ? 0 : >>1$next_pc[31:0] + 4;
+   $next_pc[31:0] = $reset ? 0 :
+                    $taken_br == 0 ? >>1$next_pc[31:0] + 4 :
+                    $br_tgt_pc;
    $pc[31:0] = >>1$next_pc;
    
    //IMem implementation - Instructions are being loaded by m4_asm automatically
@@ -72,9 +75,9 @@
    $rs2[4:0] = $instr[24:20];
    $imm[31:0] = $is_i_instr ? { {21{$instr[31]}},$instr[30:20] } :
                 $is_s_instr ? { {21{$instr[31]}},$instr[30:25],$instr[11:7] } :
-                $is_b_instr ? { {15{$instr[31]}},$instr[7],$instr[30:25],$instr[30:25],$instr[11:8],$instr[8] } :
-                $is_u_instr ? { {13{$instr[31]}},$instr[30:12]} :
-                $is_j_instr ? { {11{$instr[31]}},$instr[19:12],$instr[20],$instr[30:21],$instr[21] }: 
+                $is_b_instr ? { {20{$instr[31]}},$instr[7],$instr[30:25],$instr[11:8],$instr[8] } :
+                $is_u_instr ? { {13{$instr[31]}},$instr[30:12] } :
+                $is_j_instr ? { {12{$instr[31]}},$instr[19:12],$instr[20],$instr[30:21],$instr[21] }: 
                 32'b0 ; //Default
    
    //Check which fields are valid for the current instruction
@@ -99,7 +102,23 @@
    $is_bgeu = $dec_bits ==? 11'bx_111_1100011;
    $is_addi = $dec_bits ==? 11'bx_000_0010011;
    $is_add = $dec_bits == 11'b0_000_0110011;
+  
+   //ALU
+   $result[31:0] = $is_addi ? $src1_value + $imm :
+                   $is_add ? $src1_value + $src2_value :
+                   32'b0;  //Default
+   $wr_data[31:0] = $rd == 5'b0 ? 32'b0 :      //Keep x0 as 'always zero'
+                    $rd_valid ? $result : 32'b0;
    
+   //Branch Logic
+   $taken_br = ($src1_value == $src2_value) && $is_beq ? 1'b1 : 
+               ($src1_value != $src2_value) && $is_bne ? 1'b1 : 
+               (($src1_value < $src2_value) ^ ($src1_value[31] != $src2_value[31])) && $is_blt ? 1'b1:
+               (($src1_value >= $src2_value) ^ ($src1_value[31] != $src2_value[31])) && $is_bge ? 1'b1:
+               ($src1_value < $src2_value) && $is_bltu ? 1'b1: 
+               ($src1_value >= $src2_value) && $is_bgeu ? 1'b1: 
+               1'b0;
+   $br_tgt_pc[31:0] = $pc + $imm;
    
    //Log clean-up for dangling signals
    `BOGUS_USE($rd $rd_valid $rs1 $rs1_valid $funct3 $funct3_valid
@@ -108,7 +127,7 @@
               $is_addi $is_add);
    
    // Assert these to end simulation (before Makerchip cycle limit).
-   *passed = 1'b0;
+   m4+tb()
    *failed = *cyc_cnt > M4_MAX_CYC;
    
    //Register File macro
