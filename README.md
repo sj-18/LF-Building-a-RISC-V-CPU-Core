@@ -1,6 +1,9 @@
 # Building a RISC-V CPU Core
 
-## Course Description
+## MY NOTES
+The "risc-v_shell.tlv" contains the TL-Verilog code written by me. The code can be copy-pasted in the editor tab in the [makeride.com](https://www.makerchip.com/sandbox/) IDE to simulate. The VIZ and waveforms tab help analyze the CPU operation. 
+
+# Course Description
 
 This free mini-workshop, offered by by [Steve Hoover](https://www.linkedin.com/in/steve-hoover-a44b607/) of [Redwood EDA, LLC](https://redwoodeda.com), [Linux Foundation](https://www.linuxfoundation.org/), and [RISC-V International](https://riscv.org) is a crash course in digital logic design and basic CPU microarchitecture. Using the Makerchip online integrated development environment (IDE), you’ll implement everything from logic gates to a simple, but complete, RISC-V CPU core. You’ll be amazed by what you can do using freely-available online tools for open-source development. You’ll walk away with fundamental skills for a career in logic design, and you’ll position yourself on the forefront by learning to use the emerging Transaction-Level Verilog language extension (even if you don’t already know Verilog).
 
