@@ -1,7 +1,7 @@
 # Building a RISC-V CPU Core
 
 ## MY NOTES
-The "risc-v_shell.tlv" contains the TL-Verilog code written by me. The code can be copy-pasted in the editor tab in the [makeride.com](https://www.makerchip.com/sandbox/) IDE to simulate. The VIZ and waveforms tab help analyze the CPU operation. 
+The "risc-v_shell.tlv" file contains the TL-Verilog code written by me. The code can be copy-pasted in the editor tab in the [makerchip.com](https://www.makerchip.com/sandbox/) IDE to simulate. The VIZ and waveforms tab help analyze the CPU operation. 
 
 # Course Description
 
