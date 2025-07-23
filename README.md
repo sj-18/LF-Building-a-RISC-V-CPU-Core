@@ -6,7 +6,7 @@ Completed the "LFD111x Building a RISC-V CPU Core" course provided by LinuxFound
 Steps to simulate-
 1. Copy the code from risc-v_shell.tlv – My own TL-Verilog implementation of the CPU core. 
 
-2. Paste into the Editor tab in the [Makerchip IDE](https://makerchip.com/sandbox#), then use the VIZ and Waveform tabs to explore CPU behavior.
+2. Paste into the Editor tab in the [Makerchip IDE](https://makerchip.com/sandbox#), simulate(Ctrl + Enter) and then use the VIZ and Waveform tabs to explore CPU behavior.
 
 
 
