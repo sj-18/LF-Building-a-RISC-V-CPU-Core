@@ -4,36 +4,8 @@
    
    m4_include_lib(['https://raw.githubusercontent.com/stevehoover/LF-Building-a-RISC-V-CPU-Core/main/lib/risc-v_shell_lib.tlv'])
 
-
-
-   //---------------------------------------------------------------------------------
-   // /====================\
-   // | Sum 1 to 9 Program |
-   // \====================/
-   //
-   // Program to test RV32I
-   // Add 1,2,3,...,9 (in that order).
-   //
-   // Regs:
-   //  x12 (a2): 10
-   //  x13 (a3): 1..10
-   //  x14 (a4): Sum
-   //
-   m4_asm(ADDI, x14, x0, 0)             // Initialize sum register a4 with 0
-   m4_asm(ADDI, x12, x0, 1010)          // Store count of 10 in register a2.
-   m4_asm(ADDI, x13, x0, 1)             // Initialize loop count register a3 with 0
-   // Loop:
-   m4_asm(ADD, x14, x13, x14)           // Incremental summation
-   m4_asm(ADDI, x13, x13, 1)            // Increment loop count by 1
-   m4_asm(BLT, x13, x12, 1111111111000) // If a3 is less than a2, branch to label named <loop>
-   // Test result value in x14, and set x31 to reflect pass/fail.
-   m4_asm(ADDI, x30, x14, 111111010100) // Subtract expected value of 44 to set x30 to 1 if and only iff the result is 45 (1 + 2 + ... + 9).
-   m4_asm(BGE, x0, x0, 0) // Done. Jump to itself (infinite loop). (Up to 20-bit signed immediate plus implicit 0 bit (unlike JALR) provides byte address; last immediate bit should also be 0)
-   m4_asm(ADD, x0, x13, x14) //Check if x0 stays 'always zero'
-   m4_asm_end()
-   m4_define(['M4_MAX_CYC'], 50)
-   //---------------------------------------------------------------------------------
-
+   //Makerfile test program to check all RV32-I instructions
+   m4_test_prog()
 
 
 \SV
@@ -76,7 +48,7 @@
    $imm[31:0] = $is_i_instr ? { {21{$instr[31]}},$instr[30:20] } :
                 $is_s_instr ? { {21{$instr[31]}},$instr[30:25],$instr[11:7] } :
                 $is_b_instr ? { {20{$instr[31]}},$instr[7],$instr[30:25],$instr[11:8],$instr[8] } :
-                $is_u_instr ? { {13{$instr[31]}},$instr[30:12] } :
+                $is_u_instr ? { $instr[31:12] , {12{$instr[12]}} } :
                 $is_j_instr ? { {12{$instr[31]}},$instr[19:12],$instr[20],$instr[30:21],$instr[21] }: 
                 32'b0 ; //Default
    
@@ -102,13 +74,71 @@
    $is_bgeu = $dec_bits ==? 11'bx_111_1100011;
    $is_addi = $dec_bits ==? 11'bx_000_0010011;
    $is_add = $dec_bits == 11'b0_000_0110011;
-  
+   $is_lui = $dec_bits ==? 11'bx_xxx_0110111;
+   $is_auipc = $dec_bits ==? 11'bx_xxx_0010111;
+   $is_jal = $dec_bits ==? 11'bx_xxx_1101111;
+   $is_jalr = $dec_bits ==? 11'bx_000_1100111;
+   $is_slti = $dec_bits ==? 11'bx_010_0010011;
+   $is_sltiu = $dec_bits ==? 11'bx_011_0010011;
+   $is_xori = $dec_bits ==? 11'bx_100_0010011;
+   $is_ori = $dec_bits ==? 11'bx_110_0010011;
+   $is_andi = $dec_bits ==? 11'bx_111_0010011;
+   $is_slli = $dec_bits == 11'b0_001_0010011;
+   $is_srli = $dec_bits == 11'b0_101_0010011;
+   $is_srai = $dec_bits == 11'b1_101_0010011;
+   $is_sub = $dec_bits == 11'b1_000_0110011;
+   $is_sll = $dec_bits == 11'b0_001_0110011;
+   $is_slt = $dec_bits == 11'b0_010_0110011;
+   $is_sltu = $dec_bits == 11'b0_011_0110011;
+   $is_xor = $dec_bits == 11'b0_100_0110011;
+   $is_srl = $dec_bits == 11'b0_101_0110011;
+   $is_sra = $dec_bits == 11'b1_101_0110011;
+   $is_or = $dec_bits == 11'b0_110_0110011;
+   $is_and = $dec_bits == 11'b0_111_0110011;
+   $is_load = $dec_bits ==? 11'bx_xxx_0000011; //Considering all load instructions under 1
+   
    //ALU
-   $result[31:0] = $is_addi ? $src1_value + $imm :
-                   $is_add ? $src1_value + $src2_value :
+   $result[31:0] = $is_addi ? $src1_value + $imm :    //ADD immediate
+                   $is_add ? $src1_value + $src2_value :    //ADD
+                   $is_andi ? $src1_value & $imm :    //AND immediate
+                   $is_ori ? $src1_value | $imm :    //OR immediate
+                   $is_xori ? $src1_value ^ $imm :    //XOR immediate
+                   $is_slli ? $src1_value << $imm[5:0] :    //Shift left logical immediate
+                   $is_srli ? $src1_value >> $imm[5:0] :    //Shift right logical immediate
+                   $is_and ? $src1_value & $src2_value:    //AND
+                   $is_or ? $src1_value | $src2_value:    //OR
+                   $is_xor ? $src1_value ^ $src2_value:    //XOR
+                   $is_sub ? $src1_value - $src2_value:    //SUB
+                   $is_sll ? $src1_value << $src2_value[4:0]:    //Shift left logical
+                   $is_srl ? $src1_value >> $src2_value[4:0]:    //Shift right logical
+                   $is_sltu ? $sltu_rslt:    //Set if less than,unsigned
+                   $is_sltiu ? $sltiu_rslt:    //Set if less than,unsigned immediate
+                   $is_lui ? {$src1_value[31:12] , 12'b0} :    //Load upper immediate (Combined with ori to load 32 bits register)
+                   $is_auipc ? $pc + $imm :    //Add Upper Immediate to PC. Same as $br_tgt_pc implemented earlier
+                   $is_jal ?  $pc + 32'd4 :    //Jump-and-Link
+                   $is_jalr ? $pc + 32'd4 :    //Jump-and-Link register (will need to change)
+                   $is_slt ? (($src1_value[31] != $src2_value[31]) ?
+                   {31'b0, $src1_value[31]} : $sltu_rslt) :    //Set if less than, signed
+                   $is_slti ? (($src1_value[31] != $imm[31]) ?
+                   {31'b0, $src1_value[31]} : $sltiu_rslt) :    //Set if less than, signed immediate
+                   $is_sra ? $sra_rslt[31:0] :    //Shift right arithmetic
+                   $is_srai ? $srai_rslt[31:0] :    //Shift right arithmetic immediate
                    32'b0;  //Default
    $wr_data[31:0] = $rd == 5'b0 ? 32'b0 :      //Keep x0 as 'always zero'
                     $rd_valid ? $result : 32'b0;
+   
+   //SLTU and SLTI (set if less than, unsigned) results:
+   $sltu_rslt[31:0] = {31'b0, $src1_value < $src2_value};
+   $sltiu_rslt[31:0] = {31'b0, $src1_value < $imm};
+   
+   //SRA and SRAI (shift right, arithmetic) results:
+   // sign extended src1
+   $sext_src1[63:0] = { {32{$src1_value[31]}} , $src1_value };
+   // 64 bit sign extended results which we will truncate and take in $results
+   $sra_rslt[63:0] = $sext_src1 >> $src2_value[4:0];
+   $srai_rslt[63:0] = $sext_src1 >> $imm[4:0];
+   
+   
    
    //Branch Logic
    $taken_br = ($src1_value == $src2_value) && $is_beq ? 1'b1 : 
