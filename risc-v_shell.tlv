@@ -17,8 +17,9 @@
    
    //Program counter(just increments as of now)
    $next_pc[31:0] = $reset ? 0 :
-                    $taken_br == 0 ? >>1$next_pc[31:0] + 4 :
-                    $br_tgt_pc;
+                    $taken_br || $is_jal ? $br_tgt_pc :
+                    $is_jalr ? $jalr_tgt_pc :
+                    >>1$next_pc[31:0] + 4;
    $pc[31:0] = >>1$next_pc;
    
    //IMem implementation - Instructions are being loaded by m4_asm automatically
@@ -98,7 +99,7 @@
    $is_load = $dec_bits ==? 11'bx_xxx_0000011; //Considering all load instructions under 1
    
    //ALU
-   $result[31:0] = $is_addi ? $src1_value + $imm :    //ADD immediate
+   $result[31:0] = ($is_addi || $is_load || $is_s_instr) ? $src1_value + $imm :    //ADD immediate
                    $is_add ? $src1_value + $src2_value :    //ADD
                    $is_andi ? $src1_value & $imm :    //AND immediate
                    $is_ori ? $src1_value | $imm :    //OR immediate
@@ -116,7 +117,7 @@
                    $is_lui ? {$src1_value[31:12] , 12'b0} :    //Load upper immediate (Combined with ori to load 32 bits register)
                    $is_auipc ? $pc + $imm :    //Add Upper Immediate to PC. Same as $br_tgt_pc implemented earlier
                    $is_jal ?  $pc + 32'd4 :    //Jump-and-Link
-                   $is_jalr ? $pc + 32'd4 :    //Jump-and-Link register (will need to change)
+                   $is_jalr ? $pc + 32'd4 :    //Jump-and-Link register, useful for function calls (will need to change)
                    $is_slt ? (($src1_value[31] != $src2_value[31]) ?
                    {31'b0, $src1_value[31]} : $sltu_rslt) :    //Set if less than, signed
                    $is_slti ? (($src1_value[31] != $imm[31]) ?
@@ -125,6 +126,7 @@
                    $is_srai ? $srai_rslt[31:0] :    //Shift right arithmetic immediate
                    32'b0;  //Default
    $wr_data[31:0] = $rd == 5'b0 ? 32'b0 :      //Keep x0 as 'always zero'
+                    $is_load ? $ld_data :
                     $rd_valid ? $result : 32'b0;
    
    //SLTU and SLTI (set if less than, unsigned) results:
@@ -149,6 +151,7 @@
                ($src1_value >= $src2_value) && $is_bgeu ? 1'b1: 
                1'b0;
    $br_tgt_pc[31:0] = $pc + $imm;
+   $jalr_tgt_pc[31:0] = $src1_value + $imm;
    
    //Log clean-up for dangling signals
    `BOGUS_USE($rd $rd_valid $rs1 $rs1_valid $funct3 $funct3_valid
@@ -163,7 +166,8 @@
    //Register File macro
    m4+rf(32, 32, $reset, $rd_valid, $rd[4:0], $wr_data[31:0], $rs1_valid, $rs1[4:0], $src1_value, $rs2_valid, $rs2[4:0], $src2_value)
    
-   //m4+dmem(32, 32, $reset, $addr[4:0], $wr_en, $wr_data[31:0], $rd_en, $rd_data)
+   //DMem Macro instantiated
+   m4+dmem(32, 32, $reset, $result[6:2], $is_s_instr, $src2_value[31:0], $is_load, $ld_data)
    m4+cpu_viz()
 \SV
    endmodule
